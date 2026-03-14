@@ -1,0 +1,53 @@
+Panels:
+  - Class: rviz_common/DisplayPanel
+    Name: Displays
+  - Class: rviz_common/SelectionPanel
+    Name: Selection
+  - Class: rviz_common/ToolPanel
+    Name: Tools
+  - Class: rviz_common/ViewsPanel
+    Name: Views
+
+Visualization Manager:
+  Class: rviz_common/VisualizationManager
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Enabled: true
+      Name: Grid
+      Reference Frame: base_link
+
+    - Class: rviz_default_plugins/RobotModel
+      Description Topic:
+        Value: /robot_description
+      Enabled: true
+      Name: RobotModel
+
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frames:
+        All Enabled: true
+      Name: TF
+
+    - Class: rviz_default_plugins/PointCloud2
+      Enabled: true
+      Topic:
+        Value: /mid360_PointCloud2
+      Name: PointCloud
+
+  Fixed Frame: base_link
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Target Frame: base_link
+    Value: true
+
+Window Geometry:
+  Width: 1200
+  Height: 800
