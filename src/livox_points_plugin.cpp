@@ -143,7 +143,19 @@ namespace gazebo
         pp_livox.header.stamp = node_->get_clock()->now();
         pp_livox.header.frame_id = raySensor->Name();
         int count = 0;
-        boost::chrono::high_resolution_clock::time_point start_time = boost::chrono::high_resolution_clock::now();
+        // NOTE: The original implementation measured wall-clock elapsed time
+        // across the ray loop and wrote it into ``p.offset_time`` (see below).
+        // In a Gazebo sim, however, the ray sensor casts **all** rays within a
+        // single physics tick, so every point in one CustomMsg shares the
+        // *same* sim-time instant. Feeding FAST-LIVO/LIVO2 wall-clock offsets
+        // (tens of ms at RTF≈0.17) tricks its per-point motion-deskew step
+        // into applying real IMU rotation across a scan that was physically
+        // instantaneous -- the symptom is a fan / swirl artefact in the
+        // accumulated map that grows proportionally with IMU angular speed
+        // (most visible when the paint-robot's arm joints rotate fast).
+        // We keep ``offset_time = 0`` for every point so downstream deskew
+        // code degrades to a single-pose transform, which is the correct
+        // semantic for an instantaneous sim scan.
 
         // For publishing PointCloud2 type messages
         sensor_msgs::msg::PointCloud cloud;
@@ -154,7 +166,12 @@ namespace gazebo
         // Iterate over ray scan point pairs
         for (auto &pair : points_pair)
         {
-            auto range = rayShape->GetRange(pair.first);
+            // Rays start at minDist along the beam (see InitializeRays), and
+            // MultiRayShape::GetRange adds its own minRange member, which only
+            // the base Init() sets -- LivoxOdeMultiRayShape never calls it, so
+            // it stays 0 and every range came back minDist (0.1 m) short. That
+            // radially shrank each scan and biased AMCL by ~0.1-0.2 m.
+            auto range = rayShape->GetRange(pair.first) + minDist;
             auto intensity = rayShape->GetRetro(pair.first);
 
             // Handle out-of-range data
@@ -187,16 +204,8 @@ namespace gazebo
             clouds.back().y = point.Y();
             clouds.back().z = point.Z();
 
-            // Fill the PointCloud point cloud message
-            clouds.emplace_back();
-            clouds.back().x = point.X();
-            clouds.back().y = point.Y();
-            clouds.back().z = point.Z();
-
-            // Calculate timestamp offset
-            boost::chrono::high_resolution_clock::time_point end_time = boost::chrono::high_resolution_clock::now();
-            boost::chrono::nanoseconds elapsed_time = boost::chrono::duration_cast<boost::chrono::nanoseconds>(end_time - start_time);
-            p.offset_time = elapsed_time.count();
+            // Physically instantaneous scan in sim -- see comment above.
+            p.offset_time = 0;
 
             // Add point cloud data to the CustomMsg message
             pp_livox.points.push_back(p);
